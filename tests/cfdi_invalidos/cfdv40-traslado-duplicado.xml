@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4"
+  Version="4.0" Fecha="2026-01-01T00:00:00" SubTotal="100.00" Total="116.00"
+  Moneda="MXN" TipoDeComprobante="I" Exportacion="01" LugarExpedicion="00000"
+  Sello="SELLO_DE_PRUEBA" Certificado="CERT_DE_PRUEBA" NoCertificado="00000000000000000000"
+  Folio="1" Serie="TEST" FormaPago="01" MetodoPago="PUE">
+  <cfdi:Emisor Rfc="AAA010101AAA" Nombre="EMISOR DE PRUEBA" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="BBB010101BBB" Nombre="RECEPTOR DE PRUEBA"
+    DomicilioFiscalReceptor="00000" RegimenFiscalReceptor="601" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="H87"
+      Descripcion="A" ValorUnitario="40.00" Importe="40.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados>
+        <cfdi:Traslado Base="40.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="6.40"/>
+      </cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="01010101" Cantidad="1" ClaveUnidad="H87"
+      Descripcion="B" ValorUnitario="60.00" Importe="60.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados>
+        <cfdi:Traslado Base="60.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.16" Importe="9.60"/>
+      </cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="16.00">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="40.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="6.40"/>
+      <cfdi:Traslado Base="60.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.16" Importe="9.60"/>
+    </cfdi:Traslados>
+  </cfdi:Impuestos>
+</cfdi:Comprobante>

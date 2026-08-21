@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import datetime, date, time
-from .helpers import Xint, impuesto_index, default_objectify
+from .helpers import Xint, impuesto_index, default_objectify, s_dict
 from ..exceptions import NamespaceMismatchError
 from ..utils import ScalarMap
 from ..catalogs import catalog_code
@@ -10283,10 +10283,10 @@ def impuestos1(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/cfd/3}Traslados')
     if el is not None:
-        self['Traslados'] = {impuesto_index(n.attrib, 'Impuesto'): traslado1(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Traslado')}
+        self['Traslados'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), traslado1(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Traslado'))
     el = node.find('{http://www.sat.gob.mx/cfd/3}Retenciones')
     if el is not None:
-        self['Retenciones'] = {impuesto_index(n.attrib, 'Impuesto'): retencion1(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Retencion')}
+        self['Retenciones'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), retencion1(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Retencion'))
     return self
 def traslado1(cls, node):
     self = ScalarMap()
@@ -10336,10 +10336,10 @@ def impuestos2(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/cfd/3}Retenciones')
     if el is not None:
-        self['Retenciones'] = {impuesto_index(n.attrib, 'Impuesto'): retencion2(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Retencion')}
+        self['Retenciones'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), retencion2(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Retencion'))
     el = node.find('{http://www.sat.gob.mx/cfd/3}Traslados')
     if el is not None:
-        self['Traslados'] = {impuesto_index(n.attrib, 'Impuesto'): traslado2(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Traslado')}
+        self['Traslados'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), traslado2(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/3}Traslado'))
     if (a := node.attrib.get('TotalImpuestosRetenidos')) is not None:
         self['TotalImpuestosRetenidos'] = Decimal(a)
     if (a := node.attrib.get('TotalImpuestosTrasladados')) is not None:
@@ -10486,10 +10486,10 @@ def impuestos3(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/cfd/4}Traslados')
     if el is not None:
-        self['Traslados'] = {impuesto_index(n.attrib, 'Impuesto'): traslado3(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Traslado')}
+        self['Traslados'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), traslado3(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Traslado'))
     el = node.find('{http://www.sat.gob.mx/cfd/4}Retenciones')
     if el is not None:
-        self['Retenciones'] = {impuesto_index(n.attrib, 'Impuesto'): retencion3(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Retencion')}
+        self['Retenciones'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), retencion3(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Retencion'))
     return self
 def traslado3(cls, node):
     self = ScalarMap()
@@ -10546,10 +10546,10 @@ def impuestos4(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/cfd/4}Retenciones')
     if el is not None:
-        self['Retenciones'] = {impuesto_index(n.attrib, 'Impuesto'): retencion4(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Retencion')}
+        self['Retenciones'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), retencion4(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Retencion'))
     el = node.find('{http://www.sat.gob.mx/cfd/4}Traslados')
     if el is not None:
-        self['Traslados'] = {impuesto_index(n.attrib, 'Impuesto'): traslado4(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Traslado')}
+        self['Traslados'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), traslado4(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/cfd/4}Traslado'))
     if (a := node.attrib.get('TotalImpuestosRetenidos')) is not None:
         self['TotalImpuestosRetenidos'] = Decimal(a)
     if (a := node.attrib.get('TotalImpuestosTrasladados')) is not None:
@@ -12869,10 +12869,10 @@ def impuestos5(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/Pagos}Retenciones')
     if el is not None:
-        self['Retenciones'] = {impuesto_index(n.attrib, 'Impuesto'): retencion5(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/Pagos}Retencion')}
+        self['Retenciones'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), retencion5(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/Pagos}Retencion'))
     el = node.find('{http://www.sat.gob.mx/Pagos}Traslados')
     if el is not None:
-        self['Traslados'] = {impuesto_index(n.attrib, 'Impuesto'): traslado7(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/Pagos}Traslado')}
+        self['Traslados'] = s_dict((impuesto_index(n.attrib, 'Impuesto'), traslado7(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/Pagos}Traslado'))
     if (a := node.attrib.get('TotalImpuestosRetenidos')) is not None:
         self['TotalImpuestosRetenidos'] = Decimal(a)
     if (a := node.attrib.get('TotalImpuestosTrasladados')) is not None:
@@ -12978,10 +12978,10 @@ def impuestos_dr0(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/Pagos20}RetencionesDR')
     if el is not None:
-        self['RetencionesDR'] = {impuesto_index(n.attrib, 'ImpuestoDR'): retencion_dr0(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}RetencionDR')}
+        self['RetencionesDR'] = s_dict((impuesto_index(n.attrib, 'ImpuestoDR'), retencion_dr0(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}RetencionDR'))
     el = node.find('{http://www.sat.gob.mx/Pagos20}TrasladosDR')
     if el is not None:
-        self['TrasladosDR'] = {impuesto_index(n.attrib, 'ImpuestoDR'): traslado_dr0(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}TrasladoDR')}
+        self['TrasladosDR'] = s_dict((impuesto_index(n.attrib, 'ImpuestoDR'), traslado_dr0(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}TrasladoDR'))
     return self
 def retencion_dr0(cls, node):
     self = ScalarMap()
@@ -13005,10 +13005,10 @@ def impuestos_p0(cls, node):
     self = ScalarMap()
     el = node.find('{http://www.sat.gob.mx/Pagos20}RetencionesP')
     if el is not None:
-        self['RetencionesP'] = {impuesto_index(n.attrib, 'ImpuestoP'): retencion_p0(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}RetencionP')}
+        self['RetencionesP'] = s_dict((impuesto_index(n.attrib, 'ImpuestoP'), retencion_p0(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}RetencionP'))
     el = node.find('{http://www.sat.gob.mx/Pagos20}TrasladosP')
     if el is not None:
-        self['TrasladosP'] = {impuesto_index(n.attrib, 'ImpuestoP'): traslado_p0(cls, n) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}TrasladoP')}
+        self['TrasladosP'] = s_dict((impuesto_index(n.attrib, 'ImpuestoP'), traslado_p0(cls, n)) for n in el.iterfind('{http://www.sat.gob.mx/Pagos20}TrasladoP'))
     return self
 def retencion_p0(cls, node):
     self = ScalarMap()
