@@ -1,10 +1,12 @@
 from collections import defaultdict
-from decimal import Decimal
+from decimal import Decimal, ROUND_CEILING, ROUND_FLOOR, ROUND_HALF_UP
 
 from ..catalogs import moneda_decimales
 from ..transform.helpers import strcode
 from ..utils import iterate
 
+def m_decimals(moneda):
+    return moneda_decimales(strcode(moneda))
 
 def rounder(moneda):
     decimals = moneda_decimales(strcode(moneda))
@@ -69,13 +71,43 @@ def make_impuesto(impuesto: dict, base, rnd_fn):
                 raise ValueError("Invalid TipoFactor", tipo_factor)
 
     return {
-        'Base': rnd_fn(base),
+        'Base': base,
         'Impuesto': _impuesto,
         'TipoFactor': tipo_factor,
         'TasaOCuota': tasa_cuota,
         'Importe': importe
     }
 
+class RoundTracker:
+    def __init__(self, decimals):
+        if decimals < 0:
+            raise NotImplementedError("decimals must be non-negative")
+        self.decimals = decimals
+        self.offset = Decimal('0.0')
+        self.exp = Decimal('0.' + '0' * decimals)
+        self.offset_margin = Decimal('0.' + '0' * decimals + '5')
+
+    def peak(self, value):
+        if self.offset >= self.offset_margin:
+            return value.quantize(self.exp, rounding=ROUND_CEILING)
+        if self.offset <= -self.offset_margin:
+            return value.quantize(self.exp, rounding=ROUND_FLOOR)
+        return round(value, self.decimals)
+
+    def __call__(self, value):
+        rounded = self.peak(value)
+        self.offset += value - rounded
+        return rounded
+
+
+class RoundTrackerManager(dict):
+    def __init__(self, decimals):
+        super().__init__()
+        self.decimals = decimals
+
+    def __missing__(self, key):
+        self[key] = RoundTracker(self.decimals)
+        return self[key]
 
 def group_impuestos(elements, pfx="", ofx=""):
     retenciones = aggregate(
@@ -182,7 +214,7 @@ def make_pago_totales(pagos):
             impuestos[RETENCIONES_MAP[retencion["ImpuestoP"]]] += retencion["ImporteP"] * tipo_cambio
 
         for traslado in iterate((p["ImpuestosP"] or {}).get("TrasladosP")):
-            match (traslado["ImpuestoP"], traslado["TipoFactorP"], "{:.6f}".format(traslado["TasaOCuotaP"] or -1)):
+            match (traslado["ImpuestoP"], traslado["TipoFactorP"], "{:.6f}".format(traslado["TasaOCuotaP"] or 0)):
                 case ("002", "Tasa", "0.160000"):
                     impuestos['TotalTrasladosBaseIVA16'] += traslado["BaseP"] * tipo_cambio
                     impuestos['TotalTrasladosImpuestoIVA16'] += traslado["ImporteP"] * tipo_cambio

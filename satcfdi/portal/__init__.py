@@ -1,3 +1,9 @@
+import re
+
+import uuid
+
+import base64
+
 import json
 import pickle
 from time import time
@@ -19,9 +25,9 @@ class PortalManager(requests.Session):
 
         self.headers = CaseInsensitiveDict(
             {
-                "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/107.0.0.0 Safari/537.36',
+                "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
                 "Accept-Encoding": 'gzip, deflate, br',
-                "Accept": 'text/html,application/xhtml+xml,application/xml',
+                "Accept": 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
                 "Connection": "keep-alive",
                 'Pragma': 'no-cache',
                 'Cache-Control': 'no-cache',
@@ -38,7 +44,8 @@ class PortalManager(requests.Session):
         res = self.post(
             url=action,
             headers=request_ref_headers(referer_url),
-            data=data
+            data=data,
+            allow_redirects=True
         )
         assert res.status_code == 200
         return res
@@ -47,7 +54,7 @@ class PortalManager(requests.Session):
         action, data = get_form(login_response, id='certform')
         return self.form(
             action,
-            login_response.request.url,
+            login_response.url,
             data | {
                 'token': generate_token(self.signer, code=data['guid']),
                 'fert': self.signer.certificate.get_notAfter()[2:].decode(),
@@ -66,7 +73,7 @@ class SATPortal(PortalManager):
         action, data = get_form(res)
 
         return self.fiel_login(
-            login_response=self.form(action, res.request.url, data)
+            login_response=self.form(action, res.url, data)
         )
 
     def home_page(self):
@@ -91,8 +98,7 @@ class SATPortal(PortalManager):
         assert res.status_code == 200
 
         action, data = get_form(res)
-        res = self.form(action, res.request.url, data)
-        return res
+        return self.form(action, res.url, data)
 
 
 class SATFacturaElectronica(PortalManager):
@@ -109,10 +115,7 @@ class SATFacturaElectronica(PortalManager):
             url=self.BASE_URL
         )
         assert res.status_code == 200
-        try:
-            action, data = get_form(res)
-        except IndexError as ex:
-            raise ValueError("Login form not found, please try again") from ex
+        action, data = get_form(res)
 
         if action.startswith('https://cfdiau.sat.gob.mx/'):
             assert 'nidp/wsfed/ep?id=SATUPCFDiCon' in action
@@ -120,17 +123,17 @@ class SATFacturaElectronica(PortalManager):
             res = self.fiel_login(
                 login_response=self.form(
                     action.replace('nidp/wsfed/ep?id=SATUPCFDiCon', 'nidp/app/login?id=SATx509Custom'),
-                    res.request.url,
+                    res.url,
                     data
                 )
             )
 
             action, data = get_form(res)
-            res = self.form(action, res.request.url, data)
+            res = self.form(action, res.url, data)
 
             action, data = get_form(res)
 
-        res = self.form(action, res.request.url, data)
+        res = self.form(action, res.url, data)
 
         self._request_verification_token = request_verification_token(res)
         self._ajax_id = random_ajax_id()
@@ -227,12 +230,9 @@ class SATPortalConstancia(PortalManager):
         )
         assert res.status_code == 200
         action, data = get_form(res)
-        if action is None:
-            return res
+        res = self.form(action, res.url, data)
 
-        return self.fiel_login(
-            login_response=self.form(action, res.request.url, data)
-        )
+        return self.fiel_login(res)
 
     def generar_constancia(self):
         self.login()
@@ -245,14 +245,12 @@ class SATPortalConstancia(PortalManager):
         # Execute Authentication Request
         action, data = get_form(res)
         if action == "https://login.siat.sat.gob.mx/nidp/saml2/sso":
-            res = self.form(action, res.request.url, data)
-            assert res.status_code == 200
+            res = self.form(action, res.url, data)
 
             # Execute Authentication Response
             action, data = get_form(res)
             assert action == "https://rfcampc.siat.sat.gob.mx/saml2/sp/acs/post"
-            res = self.form(action, res.request.url, data)
-            assert res.status_code == 200
+            res = self.form(action, res.url, data)
 
         # Execute formReimpAcuse
         action, data = get_form(res)
@@ -270,8 +268,7 @@ class SATPortalConstancia(PortalManager):
                 'formReimpAcuse:folio': '',
                 'javax.faces.ViewState': data['javax.faces.ViewState']
             }
-            res = self.form(action, res.request.url, data)
-            assert res.status_code == 200
+            self.form(action, res.url, data)
 
         res = self.get(
             url='https://rfcampc.siat.sat.gob.mx/PTSC/IdcSiat/IdcGeneraConstancia.jsf'
@@ -283,38 +280,70 @@ class SATPortalConstancia(PortalManager):
 class SATPortalOpinionCumplimiento(PortalManager):
     BASE_URL = 'https://login.mat.sat.gob.mx'
 
-    def login(self):
+    def generar_opinion_cumplimiento(self) -> bytes:
+        """Download Opinión de Cumplimiento (32-D) from SAT portal.
+
+        Returns:
+            bytes: PDF content of the Opinión de Cumplimiento
+        """
+
+        # Step 1: Navigate to portal → redirects to CIEC login
         res = self.get(
-            url=f'{self.BASE_URL}/nidp/app/login?id=contr-dual-eFirma-totp'
-        )
-        assert res.status_code == 200
-        action, data = get_form(res)
-
-        res = self.form(action, res.request.url, data)
-        assert res.status_code == 200
-
-        res = self.form(action, res.request.url, data)
-        assert res.status_code == 200
-
-        res = self.form(action, res.request.url, data)
-        assert res.status_code == 200
-
-        return res
-
-    def generar_opinion_cumplimiento_login(self):
-        res = self.get(
-            url="https://ptsc32d.clouda.sat.gob.mx/?/reporteOpinion32DContribuyente",
-            allow_redirects=True
+            "https://ptsc32d.clouda.sat.gob.mx/?/reporteOpinion32DContribuyente",
+            allow_redirects=True,
         )
         assert res.status_code == 200
 
-        # Execute Authentication Request
+        # Step 2: Switch to FIEL login (Referer required for non-empty response)
         action, data = get_form(res)
-        if action.startswith("https://login.mat.sat.gob.mx/nidp//app/login"):
-            res = self.form(action, res.request.url, data)
+        if action.startswith("https://loginda.siat.sat.gob.mx/nidp/app/login"):
+            fiel_action = action.replace("id=ciec", "id=fiel")
+            res = self.form(fiel_action, res.url, data)
+            assert len(res.text) > 0, "FIEL login page empty"
+
+            # Step 3: FIEL authentication
+            res = self.fiel_login(res)
+
+        # Step 4: Follow JS redirect (top.location.href = OAuth2 authz URL)
+        for location in re.finditer(r"location\.href=['\"]([^'\"]+)['\"]", res.text):
+            res = self.get(location.group(1), allow_redirects=True)
             assert res.status_code == 200
+            break
 
-            # Execute Authentication Response
+        # Step 5: Follow remaining SAML/OAuth form redirects
+        for _ in range(10):
             action, data = get_form(res)
-            res = self.form(action, res.request.url, data)
-            assert res.status_code == 200
+            if not action:
+                break
+            res = self.form(action, res.url, data)
+
+        # Step 6: Download the PDF via POST
+        rfc = self.signer.rfc
+        pdf_res = self.post(
+            "https://ptsc32d.clouda.sat.gob.mx/RespuestaCompleta/ObtenerRespuestaCompletaPdf",
+            json={
+                "canal": "G",
+                "curp": "",
+                "idCorrelacion": str(uuid.uuid4()),
+                "ip": "127.0.0.1",
+                "rfc": rfc,
+                "tipoConsulta": "COMPLETA",
+                "tipoReporte": "32D",
+                "usuario": rfc,
+                "rfcCorto": rfc,
+            },
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Origin": "https://ptsc32d.clouda.sat.gob.mx",
+                "Referer": "https://ptsc32d.clouda.sat.gob.mx/",
+            },
+        )
+        assert pdf_res.status_code == 200, f"ObtenerPdf returned {pdf_res.status_code}"
+
+        json_data = pdf_res.json()
+        b64_content = json_data.get("ContenidoBase64")
+        if not b64_content:
+            raise RuntimeError("SAT no retornó el PDF de la opinión 32-D")
+
+        return base64.b64decode(b64_content)

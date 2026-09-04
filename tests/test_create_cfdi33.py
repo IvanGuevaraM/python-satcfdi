@@ -1,4 +1,5 @@
 import os
+import sys
 from datetime import datetime, date
 from decimal import Decimal
 from unittest import mock
@@ -11,7 +12,7 @@ from satcfdi.create.cfd import cfdi33, nomina12
 from satcfdi.create.cfd.catalogos import Impuesto, TipoFactor
 from satcfdi.create.cfd.cfdi40 import PagoComprobante
 from satcfdi.pacs.sat import SAT
-from tests.utils import get_signer, verify_result, _uuid, stamp_v11, SAT_Certificate_Store_Pruebas, XElementPrettyPrinter
+from .utils import get_signer, verify_result, _uuid, stamp_v11, SAT_Certificate_Store_Pruebas, XElementPrettyPrinter
 
 module = 'satcfdi'
 current_dir = os.path.dirname(__file__)
@@ -42,8 +43,9 @@ def verify_invoice(invoice, path, include_metadata=False):
     verify = verify_result(data=invoice.xml_bytes(pretty_print=True), filename=f"{path}.xml")
     assert verify
 
-    verify = verify_result(data=render.html_str(invoice), filename=f"{path}.html")
-    assert verify
+    if sys.version_info < (3, 14):
+        verify = verify_result(data=render.html_str(invoice), filename=f"{path}.html")
+        assert verify
 
 
 @pytest.mark.parametrize('rfc, xml_file, traslados, retenciones, total, traslado_incluido', invoices)

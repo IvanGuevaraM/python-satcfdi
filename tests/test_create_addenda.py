@@ -7,7 +7,7 @@ from satcfdi.create.addendas import dvz11
 from satcfdi.create.cfd import cfdi40
 from satcfdi.create.cfd.catalogos import Impuesto, TipoFactor
 from satcfdi.pacs.sat import SAT
-from tests.utils import get_signer, verify_result, XElementPrettyPrinter
+from .utils import get_signer, verify_result, XElementPrettyPrinter
 
 module = 'satcfdi'
 current_dir = os.path.dirname(__file__)
@@ -80,8 +80,7 @@ def test_create_addenda():
                             tasa_o_cuota=Decimal('0.106667'),
                         )
                     ],
-                ),
-                _traslados_incluidos=False
+                )
             )
         ],
         addenda=dvz11.Diverza(
@@ -146,8 +145,7 @@ def test_copy_cfdi():
                             tasa_o_cuota=Decimal('0.106667'),
                         )
                     ],
-                ),
-                _traslados_incluidos=False
+                )
             )
         ]
     )

@@ -11,7 +11,8 @@ from cryptography.hazmat.primitives.serialization import load_der_private_key
 from satcfdi.certifica import _create_certificate_signing_request, _create_certificate_signing_request_zip, Certifica, _calculate_code, \
     _create_renovation_certificate_signing_request, _calculate_code_random, _create_generacion_certificate_signing_request, _create_renovation_moral_certificate_signing_request
 from satcfdi.certifica.pkcs7 import create_pkcs7
-from tests.utils import get_signer
+from satcfdi.zip import _ZipInfo
+from .utils import get_signer
 
 current_dir = os.path.dirname(__file__)
 current_filename = os.path.splitext(os.path.basename(__file__))[0]
@@ -168,12 +169,12 @@ def test_create_signing_request_zip(folder, password, zip_date, sucursal, rfc, f
 
     # Verify ZIP
     def zi(filename):
-        return ZipInfo(
+        return _ZipInfo(
             filename=filename,
             date_time=zip_date  # time.localtime(time.time())[:6]
         )
 
-    with mock.patch(f'{module}.zip.ZipInfo', zi) as m, mock.patch(f'{module}.certifica.datetime') as d:
+    with mock.patch(f'{module}.zip._ZipInfo', zi) as m, mock.patch(f'{module}.certifica.datetime') as d:
         d.now = mock.Mock(return_value=file_name_date)
 
         res = _create_certificate_signing_request_zip(signer=signer, private_key=private_key, sucursal=sucursal)

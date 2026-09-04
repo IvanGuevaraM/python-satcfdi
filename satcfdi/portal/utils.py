@@ -53,16 +53,15 @@ def action_url(action: str | None, url: str):
     return action
 
 
-def get_form(res: Response, id=None):
+def get_form(res: Response, **kwargs):
     html = BeautifulSoup(res.text, 'html.parser')
-    if id:
-        form = html.find(id=id)
-    else:
-        form = html.select('form')[0]
+    form = html.find('form', **kwargs)
+    if form is None:
+        return None, {}
 
     data = {
-        i.attrs['name']: i.attrs.get('value')
-        for i in form.findChildren('input')
+        str(i.attrs['name']): i.attrs.get('value')
+        for i in form.find_all('input')
         if 'name' in i.attrs
     }
 

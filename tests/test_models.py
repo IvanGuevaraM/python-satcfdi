@@ -2,11 +2,11 @@ import logging
 import os
 import types
 from datetime import date, datetime
-from enum import StrEnum
 from itertools import chain
 from unittest import mock
 
 import pytest
+import pytz
 from OpenSSL import crypto
 
 from satcfdi.models import Code
@@ -19,8 +19,9 @@ from satcfdi.models.rfc import RFC, RFCType, RFC_Generico_Nacional, RFC_Generico
 from satcfdi.models.signer import Signer
 from satcfdi.pacs.sat import SAT
 from satcfdi.transform import verify_certificate
+from satcfdi.utils import StrEnum
 from tests.constants import PERSONAS_FISICAS, PERSONAS_MORALES
-from tests.utils import get_signer, SAT_Certificate_Store_Pruebas
+from .utils import get_signer, SAT_Certificate_Store_Pruebas
 
 module = 'satcfdi'
 current_dir = os.path.dirname(__file__)
@@ -134,11 +135,11 @@ def test_verify_certificates():
         with mock.patch(f'{module}.transform.SAT_Certificate_Store', SAT_Certificate_Store_Pruebas):
             try:
                 signer = get_signer(rfc)
-                verify_certificate(signer, at=datetime(2021, 6, 12))
+                verify_certificate(signer, at=datetime(2021, 6, 12, tzinfo=pytz.utc))
                 assert signer.type == CertificateType.Fiel
 
                 signer_csd = get_signer(rfc, get_csd=True)
-                verify_certificate(signer_csd, at=datetime(2021, 6, 12))
+                verify_certificate(signer_csd, at=datetime(2021, 6, 12, tzinfo=pytz.utc))
                 assert signer_csd.type == CertificateType.CSD
 
             except FileNotFoundError as ex:
@@ -147,11 +148,11 @@ def test_verify_certificates():
 
 def test_requirement():
     for rfc in PERSONAS_FISICAS:
-        res = CertificateSigningRequest.load2(
+        res = CertificateSigningRequest.load(
             request=open(os.path.join(current_dir, "csd", "Personas Fisicas", f'{rfc.lower()}.req'), 'rb').read()
         )
     for rfc in PERSONAS_MORALES:
-        res = CertificateSigningRequest.load2(
+        res = CertificateSigningRequest.load(
             request=open(os.path.join(current_dir, "csd", "Personas Morales", f'{rfc.lower()}.req'), 'rb').read()
         )
 

@@ -11,7 +11,7 @@ from satcfdi.create.cfd import cfdi40
 from satcfdi.create.cfd.catalogos import Impuesto, TipoFactor
 from satcfdi.pacs import Environment, Accept, CancelReason
 from satcfdi.pacs.swsapien import SWSapien
-from utils import get_signer, verify_result
+from .utils import get_signer, verify_result
 
 current_dir = os.path.dirname(__file__)
 
@@ -57,8 +57,7 @@ def test_swsapien_test():
             impuestos=cfdi40.Impuestos(
                 traslados=cfdi40.Traslado(impuesto=Impuesto.IVA, tipo_factor=TipoFactor.TASA, tasa_o_cuota=Decimal('0.160000')),
                 retenciones=[cfdi40.Traslado(impuesto=Impuesto.ISR, tipo_factor=TipoFactor.TASA, tasa_o_cuota=Decimal('0.100000')), cfdi40.Traslado(impuesto=Impuesto.IVA, tipo_factor=TipoFactor.TASA, tasa_o_cuota=Decimal('0.106667'))],
-            ),
-            _traslados_incluidos=True
+            )
         )
     )
     invoice.sign(signer)

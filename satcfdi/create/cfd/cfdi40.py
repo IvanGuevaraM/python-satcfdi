@@ -4,12 +4,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
 
-from satcfdi.create.cfd.catalogos import Impuesto as CatImpuesto
 from . import pago20
 from ..compute import make_impuestos, rounder, make_impuesto, \
-    make_impuestos_dr_parcial
+    make_impuestos_dr_parcial, m_decimals, RoundTrackerManager
 from ...cfdi import CFDI
+from ...create.cfd.catalogos import Impuesto as CatImpuesto
 from ...transform import get_timezone
+from ...transform.helpers import strcode
 from ...utils import ScalarMap
 from ...utils import iterate
 
@@ -117,13 +118,6 @@ class ACuentaTerceros(ScalarMap):
         })
 
 
-def _find_impuesto(impuesto):
-    try:
-        return CatImpuesto[impuesto]
-    except KeyError:
-        return impuesto
-
-
 class Traslado(ScalarMap):
     """
     Nodo requerido para la información detallada de un traslado de impuesto específico.
@@ -145,7 +139,7 @@ class Traslado(ScalarMap):
     ):
         super().__init__({
             'Base': base,
-            'Impuesto': _find_impuesto(impuesto),
+            'Impuesto': CatImpuesto.get(impuesto, impuesto),
             'TipoFactor': tipo_factor,
             'TasaOCuota': tasa_o_cuota,
             'Importe': importe,
@@ -173,7 +167,7 @@ class Retencion(ScalarMap):
     ):
         super().__init__({
             'Base': base,
-            'Impuesto': _find_impuesto(impuesto),
+            'Impuesto': CatImpuesto.get(impuesto, impuesto),
             'TipoFactor': tipo_factor,
             'TasaOCuota': tasa_o_cuota,
             'Importe': importe,
@@ -217,7 +211,6 @@ class Concepto(ScalarMap):
     :param cuenta_predial: Nodo opcional para asentar el número de cuenta predial con el que fue registrado el inmueble, en el sistema catastral de la entidad federativa de que trate, o bien para incorporar los datos de identificación del certificado de participación inmobiliaria no amortizable.
     :param complemento_concepto: Nodo opcional donde se incluyen los nodos complementarios de extensión al concepto definidos por el SAT, de acuerdo con las disposiciones particulares para un sector o actividad específica.
     :param parte: Nodo opcional para expresar las partes o componentes que integran la totalidad del concepto expresado en el comprobante fiscal digital por Internet.
-    :param _traslados_incluidos: si el valor valor_unitario ya incluye traslados.
     """
 
     def __init__(
@@ -236,8 +229,7 @@ class Concepto(ScalarMap):
             informacion_aduanera: str | Sequence[str] = None,
             cuenta_predial: str | Sequence[str] = None,
             complemento_concepto: CFDI | Sequence[CFDI] = None,
-            parte: Parte | Sequence[Parte | dict] = None,
-            _traslados_incluidos: bool = False
+            parte: Parte | Sequence[Parte | dict] = None
     ):
         super().__init__({
             'ClaveProdServ': clave_prod_serv,
@@ -254,8 +246,7 @@ class Concepto(ScalarMap):
             'InformacionAduanera': informacion_aduanera,
             'CuentaPredial': cuenta_predial,
             'ComplementoConcepto': complemento_concepto,
-            'Parte': parte,
-            '_traslados_incluidos': _traslados_incluidos
+            'Parte': parte
         })
 
 
@@ -335,38 +326,27 @@ class PagoComprobante:
             raise ValueError('Importe Pagado debe de ser menor o igual al Importe Saldo Anterior')
 
 
-def _make_conceptos(conceptos, rnd_fn):
+def _make_conceptos(conceptos, decimals):
+    rnd_fn = lambda v: round(v, decimals)
+    rnd_tracker_instance = RoundTrackerManager(decimals)
+
     def make_concepto(concepto):
-        impuestos = concepto.get("Impuestos") or {}
-        trasladados = [x if isinstance(x, dict) else Traslado.parse(x) for x in iterate(impuestos.get("Traslados"))]
-        retenciones = [x if isinstance(x, dict) else Retencion.parse(x) for x in iterate(impuestos.get("Retenciones"))]
+        valor_unitario = concepto['ValorUnitario']
 
-        if concepto.get('_traslados_incluidos'):
-            s_tasa = sum(c["TasaOCuota"] for c in trasladados if c["TipoFactor"] == "Tasa")
-            s_cuota = sum(c["TasaOCuota"] for c in trasladados if c["TipoFactor"] == "Cuota")
-            if any(c for c in trasladados if c["TipoFactor"] in ('Tasa', 'Cuota') and (c.get('Base') is not None or c.get('Importe') is not None)):
-                raise ValueError("Not possible to compute '_traslados_incluidos' if any 'trasladados' contains 'Base' or 'Importe'")
+        importe = rnd_fn(concepto["Cantidad"] * valor_unitario)
+        concepto["Importe"] = importe
+        base = importe - (concepto.get("Descuento") or 0)
 
-            valor_unitario = concepto['ValorUnitario']
-            valor_unitario = (valor_unitario - s_cuota) / (s_tasa + 1)
-            concepto['ValorUnitario'] = rnd_fn(valor_unitario)
-        else:
-            valor_unitario = concepto['ValorUnitario']
+        impuestos = concepto['Impuestos'] = {
+            imp_k: [
+                make_impuesto(i, base=base,
+                              rnd_fn=rnd_tracker_instance[imp_k + strcode(i["Impuesto"])]) for i
+                in iterate(imp_v)
+            ]
+            for imp_k, imp_v in (concepto.get("Impuestos") or {}).items() if imp_v
+        } or None
 
-        importe = concepto["Cantidad"] * valor_unitario
-        concepto["Importe"] = rnd_fn(importe)
-
-        if concepto.get("ObjetoImp") in ("01", "03"):
-            concepto['Impuestos'] = None
-        else:
-            base = importe - (concepto.get("Descuento") or 0)
-            impuestos = {
-                imp_t: [
-                    make_impuesto(i, base=base, rnd_fn=rnd_fn) for i in imp
-                ]
-                for imp_t, imp in [('Traslados', trasladados), ('Retenciones', retenciones)] if imp
-            }
-            concepto['Impuestos'] = impuestos or None
+        if not concepto.get("ObjetoImp"):
             concepto["ObjetoImp"] = "02" if impuestos else "01"
 
         return concepto
@@ -424,7 +404,7 @@ class Comprobante(CFDI):
             cfdi_relacionados: CfdiRelacionados | Sequence[CfdiRelacionados | dict] = None,
             complemento: CFDI | Sequence[CFDI] = None,
             addenda: CFDI | Sequence[CFDI] = None,
-            fecha: datetime = None,
+            fecha: datetime = None
     ):
         super().__init__({
             'Version': self.version,
@@ -458,7 +438,8 @@ class Comprobante(CFDI):
         self.compute()
 
     def compute(self):
-        self["Conceptos"] = conceptos = _make_conceptos(self["Conceptos"], rnd_fn=rounder(self["Moneda"]))
+        round_decimals = m_decimals(self["Moneda"])
+        self["Conceptos"] = conceptos = _make_conceptos(self["Conceptos"], decimals=round_decimals)
         self["SubTotal"] = sub_total = sum(c['Importe'] for c in conceptos)
         descuento = sum(c.get('Descuento') or 0 for c in conceptos)
         self['Descuento'] = descuento or None

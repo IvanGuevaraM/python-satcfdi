@@ -212,6 +212,9 @@ class Finkok(PAC):
         self._validate_cancel_response(root)
 
         ack = root.find(".//apps:Acuse", self.namespaces)
+        acuse_bytes = None
+        if ack is not None and ack.text:
+            acuse_bytes = unescape(ack.text).encode()
 
         if operation == "accept_reject":
             acceptances = root.find(".//apps:aceptacion", self.namespaces)
@@ -229,12 +232,28 @@ class Finkok(PAC):
 
             return AcceptRejectAcknowledgment(
                 folios=folios,
-                acuse=unescape(ack.text).encode() if ack is not None else None,
+                acuse=acuse_bytes,
             )
 
+        estatus_uuid_elem = root.find(".//apps:EstatusUUID", self.namespaces)
+        if estatus_uuid_elem is not None:
+            code = estatus_uuid_elem.text
+        else:
+            cod_estatus_elem = root.find(".//apps:CodEstatus", self.namespaces)
+            code = cod_estatus_elem.text if cod_estatus_elem is not None else None
+
+        if code is None and acuse_bytes:
+            try:
+                acuse_root = etree.fromstring(acuse_bytes)
+                estatus_in_acuse = acuse_root.find(".//*[local-name()='EstatusUUID']")
+                if estatus_in_acuse is not None and estatus_in_acuse.text:
+                    code = estatus_in_acuse.text
+            except Exception:
+                pass
+
         return CancelationAcknowledgment(
-            code=root.find(".//apps:EstatusUUID", self.namespaces).text,
-            acuse=unescape(ack.text).encode(),
+            code=code,
+            acuse=acuse_bytes,
         )
 
     def issue(self, cfdi: CFDI, accept: Accept = Accept.XML) -> Document:
@@ -461,3 +480,57 @@ class Finkok(PAC):
         root = self._perform_request(url, envelope)
 
         return [uuid.text for uuid in root.find(".//apps:uuids", self.namespaces)]
+
+    def get_receipt(self, taxpayer_id: str, uuid: str, receipt_type: Literal["C", "R"] = "C") -> CancelationAcknowledgment:
+        """Operation to get the cancellation or reception receipt of an invoice.
+
+        Args:
+            taxpayer_id (str): The RFC of the issuer.
+            uuid (str): The UUID of the invoice.
+            receipt_type (Literal["C", "R"], optional): The type of receipt to get ("C" for cancelation, "R" for reception). Defaults to "C".
+
+        Returns:
+            CancelationAcknowledgment: The acknowledgment of the receipt.
+                - acuse: The receipt XML.
+
+        Raises:
+            ResponseError: If there is an error in the response.
+        """
+        namespace = self.namespaces["cancel"]
+        operation_element = etree.Element(etree.QName(namespace, "get_receipt"))
+
+        rtaxpayer_id = etree.SubElement(
+            operation_element, etree.QName(namespace, "taxpayer_id")
+        )
+        rtaxpayer_id.text = taxpayer_id
+
+        ruuid_elem = etree.SubElement(
+            operation_element, etree.QName(namespace, "uuid")
+        )
+        ruuid_elem.text = uuid
+
+        rtype = etree.SubElement(
+            operation_element, etree.QName(namespace, "type")
+        )
+        rtype.text = receipt_type
+
+        operation_element = self._add_auth(operation_element, namespace)
+        envelope = self._build_envelope(operation_element)
+
+        url = self.get_service_url("cancel")
+        root = self._perform_request(url, envelope)
+
+        error = root.find(".//apps:error", self.namespaces)
+        if error is not None and error.text:
+            raise ResponseError(error.text)
+
+        success = root.find(".//apps:success", self.namespaces)
+        if success is not None and success.text == "true":
+            receipt = root.find(".//apps:receipt", self.namespaces)
+            if receipt is not None and receipt.text:
+                return CancelationAcknowledgment(
+                    code=None,
+                    acuse=unescape(receipt.text).encode()
+                )
+
+        raise ResponseError("Unknown error getting receipt")

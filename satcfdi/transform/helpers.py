@@ -112,4 +112,10 @@ def strcode(data):
     return data
 
 
-
+def s_dict(items):
+    result = {}
+    for key, value in items:
+        if key in result:
+            raise ValueError(f"Duplicate key found: {key}")
+        result[key] = value
+    return result

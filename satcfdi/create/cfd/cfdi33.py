@@ -64,13 +64,6 @@ class Parte(ScalarMap):
         })
 
 
-def _find_impuesto(impuesto):
-    try:
-        return CatImpuesto[impuesto]
-    except KeyError:
-        return impuesto
-
-
 class Traslado(ScalarMap):
     """
     Nodo requerido para la información detallada de un traslado de impuesto específico.
@@ -92,7 +85,7 @@ class Traslado(ScalarMap):
     ):
         super().__init__({
             'Base': base,
-            'Impuesto': _find_impuesto(impuesto),
+            'Impuesto': CatImpuesto.get(impuesto, impuesto),
             'TipoFactor': tipo_factor,
             'TasaOCuota': tasa_o_cuota,
             'Importe': importe,
@@ -120,7 +113,7 @@ class Retencion(ScalarMap):
     ):
         super().__init__({
             'Base': base,
-            'Impuesto': _find_impuesto(impuesto),
+            'Impuesto': CatImpuesto.get(impuesto, impuesto),
             'TipoFactor': tipo_factor,
             'TasaOCuota': tasa_o_cuota,
             'Importe': importe,
@@ -162,7 +155,6 @@ class Concepto(ScalarMap):
     :param cuenta_predial: Nodo opcional para asentar el número de cuenta predial con el que fue registrado el inmueble, en el sistema catastral de la entidad federativa de que trate, o bien para incorporar los datos de identificación del certificado de participación inmobiliaria no amortizable.
     :param complemento_concepto: Nodo opcional donde se incluyen los nodos complementarios de extensión al concepto definidos por el SAT, de acuerdo con las disposiciones particulares para un sector o actividad específica.
     :param parte: Nodo opcional para expresar las partes o componentes que integran la totalidad del concepto expresado en el comprobante fiscal digital por Internet.
-    :param _traslados_incluidos: si el valor valor_unitario ya incluye traslados.
     """
 
     def __init__(
@@ -179,8 +171,7 @@ class Concepto(ScalarMap):
             informacion_aduanera: str | Sequence[str] = None,
             cuenta_predial: str = None,
             complemento_concepto: Sequence[CFDI] = None,
-            parte: Sequence[Parte | dict] = None,
-            _traslados_incluidos: bool = False
+            parte: Sequence[Parte | dict] = None
     ):
         super().__init__({
             'ClaveProdServ': clave_prod_serv,
@@ -195,8 +186,7 @@ class Concepto(ScalarMap):
             'InformacionAduanera': informacion_aduanera,
             'CuentaPredial': cuenta_predial,
             'ComplementoConcepto': complemento_concepto,
-            'Parte': parte,
-            '_traslados_incluidos': _traslados_incluidos
+            'Parte': parte
         })
 
 

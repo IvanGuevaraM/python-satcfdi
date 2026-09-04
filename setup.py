@@ -59,10 +59,13 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Natural Language :: Spanish",
         "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12"
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14"
     ],
-    python_requires='>=3.11',
+    python_requires='>=3.10',
     package_dir={package: package_dir},
     packages=packages,
     package_data={
@@ -86,11 +89,11 @@ setuptools.setup(
         'lxml >= 4.9.0',
         'weasyprint >= 57.0',
         'requests >= 2.0.0',
-        'cryptography >= 43.0.1',
+        'cryptography >= 43.0.3',
         'pytz >= 2022.5',
         'xlsxwriter >= 3.0.0',
         'pyOpenSSL >= 22.0.0',
-        'qrcode >= 7.3.0',
+        'qrcode >= 8.2',
         'tabulate >= 0.9.0',
         'packaging >= 21.0',
         'beautifulsoup4 > 4.11.0'
